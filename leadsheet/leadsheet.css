@@ -288,6 +288,14 @@ button.primary:hover { filter: brightness(1.08); color: #fff; }
   background: currentColor;
 }
 
+/* 空白譜格：上格寫音符、下格寫歌詞 */
+.blankstaff i {
+  display: block;
+  border-bottom: 1px solid rgba(0, 0, 0, .22);
+}
+.blankstaff i:first-child { height: calc(var(--note-size) * 1.35); }
+.blankstaff i:last-child  { height: calc(var(--note-size) * 1.15); }
+
 /* ------------------------------------------------- 每行下面嘅留白 */
 
 .space {

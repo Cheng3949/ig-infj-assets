@@ -139,6 +139,15 @@
         }
       }
 
+      // ___ 或者 ___ x6 ＝ 空白譜格（留返位手寫音符同歌詞）
+      var bm = /^_{3,}(?:\s*[xX×]\s*(\d+))?$/.exec(t);
+      if (bm) {
+        header = false; cur = null;
+        var reps = Math.min(parseInt(bm[1] || '1', 10) || 1, 60);
+        for (var b0 = 0; b0 < reps; b0++) items.push({ type: 'blank' });
+        continue;
+      }
+
       if (t[0] === '[' && t[t.length - 1] === ']') {
         header = false; cur = null;
         items.push({ type: 'section', text: t.slice(1, -1).trim() });
@@ -304,6 +313,19 @@
     return line;
   }
 
+  // 空白譜格：上格線寫音符、下格線寫歌詞，再加返一樣嘅留白
+  function buildBlank() {
+    var line = el('div', 'line blank');
+    var wrap = el('div', 'wrap');
+    var slot = el('div', 'blankstaff');
+    slot.appendChild(el('i'));
+    slot.appendChild(el('i'));
+    wrap.appendChild(slot);
+    line.appendChild(wrap);
+    line.appendChild(el('div', 'space'));
+    return line;
+  }
+
   function buildHeader(meta) {
     var head = el('header', 'sheet-head');
     if (meta.title) head.appendChild(el('h1', null, meta.title));
@@ -340,6 +362,7 @@
       var it = song.items[i];
       if (it.type === 'section') body.appendChild(el('div', 'section', it.text));
       else if (it.type === 'text') body.appendChild(el('div', 'freetext', it.text));
+      else if (it.type === 'blank') body.appendChild(buildBlank());
       else body.appendChild(buildPhrase(it));
     }
     root.appendChild(body);
