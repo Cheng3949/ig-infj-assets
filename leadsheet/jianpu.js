@@ -311,9 +311,11 @@
   /* ------------------------------------------------- 一句塞一行（自動壓縮） */
 
   var MIN_GAP_K = 0.18;     // 音符間距最多收到幾窄
-  var MAX_GAP_K = 8;        // 「撐滿一行」時最多撐幾闊
   var MIN_SCALE_X = 0.78;   // 壓過呢個比例就連字體一齊縮細，唔好淨係扁
   var MIN_FONT_K = 0.45;
+  // 「撐開」模式：一句最多只撐到自己自然闊度嘅呢個倍數。
+  // 短句唔會被攤到成行咁散 —— 夠長嗰啲先至真係填滿一行。
+  var MAX_STRETCH = 1.5;
 
   function widthOf(staff) { return staff.getBoundingClientRect().width; }
 
@@ -333,12 +335,16 @@
     line.style.setProperty('--gap-k', '0');
     var w0 = widthOf(staff);
     line.style.setProperty('--gap-k', '1');
-    var slope = widthOf(staff) - w0;
+    var natural = widthOf(staff);
+    var slope = natural - w0;
 
     var k = slope > 0.5 ? (avail - w0) / slope : 1;
 
     if (justify) {
-      k = Math.max(MIN_GAP_K, Math.min(k, MAX_GAP_K));
+      // 撐得到邊度：塞滿一行同「自然闊度 × 上限」之間，邊個細取邊個
+      var target = Math.min(avail, natural * MAX_STRETCH);
+      var kJ = slope > 0.5 ? (target - w0) / slope : 1;
+      k = Math.max(MIN_GAP_K, Math.min(k, Math.max(kJ, 1)));
       line.style.setProperty('--gap-k', k.toFixed(4));
     } else if (k >= 1) {
       line.style.setProperty('--gap-k', '1');     // 有位剩：保持原本間距，唔撐開
@@ -351,10 +357,10 @@
     }
 
     // 仲係塞唔落 → 橫向壓窄；壓得太扁就連字體都縮細
-    var natural = widthOf(staff);
-    if (natural <= avail + 1.5) return;   // 差一兩個 subpixel 就唔好郁
+    var placed = widthOf(staff);
+    if (placed <= avail + 1.5) return;   // 差一兩個 subpixel 就唔好郁
 
-    var s = avail / natural;
+    var s = avail / placed;
     if (s < MIN_SCALE_X) {
       var base = parseFloat(getComputedStyle(staff).fontSize);
       staff.style.fontSize = (base * Math.max(s / MIN_SCALE_X, MIN_FONT_K)) + 'px';
