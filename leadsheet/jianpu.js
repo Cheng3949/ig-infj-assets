@@ -36,28 +36,50 @@
   // 標點會黐返上一個字，唔會自己霸一欄
   var PUNCT = '，。、！？；：·．,.!?;:’”」』）)…';
 
+  // 和弦 {Am7} 同反覆括號 %1 唔算音符，睇係唔係音符行之前要先剝走
+  function stripMarkup(t) {
+    return t.replace(/^%\S*\s*/, '').replace(/\{[^}]*\}/g, ' ');
+  }
+
   function isNoteLine(t) {
-    if (!/[0-7]/.test(t)) return false;
-    return /^[0-7#b♯♭n=＝\^v_.\-|:()\s]+$/.test(t);
+    var s = stripMarkup(t);
+    if (!/[0-7]/.test(s)) return false;
+    return /^[0-7#b♯♭n=＝\^v_.\-|:()\s]+$/.test(s);
   }
 
   function parseNotes(text) {
     var cols = [];
     var toks = text.trim().split(/\s+/);
+    var pendingChord = null;
+
+    function push(col) {
+      if (pendingChord) { col.chord = pendingChord; pendingChord = null; }
+      cols.push(col);
+      return col;
+    }
+
     for (var i = 0; i < toks.length; i++) {
       var tok = toks[i];
       if (!tok) continue;
 
-      if (BARS[tok]) { cols.push({ kind: 'bar', style: BARS[tok] }); continue; }
+      // 和弦：{Am7}5 或者 {Am7} 5 都得，會貼落跟住嗰粒音／小節線
+      var cm = /^\{([^}]*)\}/.exec(tok);
+      if (cm) {
+        pendingChord = cm[1].trim();
+        tok = tok.slice(cm[0].length);
+        if (!tok) continue;
+      }
+
+      if (BARS[tok]) { push({ kind: 'bar', style: BARS[tok] }); continue; }
 
       // 單獨嘅 - 係延音線，一個 - 佔一拍
       if (/^-+$/.test(tok)) {
-        for (var d = 0; d < tok.length; d++) cols.push({ kind: 'dash' });
+        for (var d = 0; d < tok.length; d++) push({ kind: 'dash' });
         continue;
       }
 
       var m = /^([#b♯♭n=＝]?)([\^v]*)([0-7])([\^v]*)([._\-]*)$/.exec(tok);
-      if (!m) { cols.push({ kind: 'raw', text: tok }); continue; }
+      if (!m) { push({ kind: 'raw', text: tok }); continue; }
 
       var oct = 0, marks = m[2] + m[4];
       for (var k = 0; k < marks.length; k++) oct += marks[k] === '^' ? 1 : -1;
@@ -70,7 +92,7 @@
         else if (c === '-') dashes++;
       }
 
-      cols.push({
+      push({
         kind: 'note',
         acc: m[1],
         oct: oct,
@@ -79,7 +101,7 @@
         beams: beams,
         rest: m[3] === '0'
       });
-      for (var e = 0; e < dashes; e++) cols.push({ kind: 'dash' });
+      for (var e = 0; e < dashes; e++) push({ kind: 'dash' });
     }
     return cols;
   }
@@ -132,7 +154,10 @@
 
       if (isNoteLine(t)) {
         header = false;
-        cur = { type: 'phrase', cols: parseNotes(t), lyrics: [], annos: [] };
+        var volta = null;
+        var vm = /^%(\S+)\s*/.exec(t);          // %1 / %2 = 反覆括號
+        if (vm) { volta = vm[1]; t = t.slice(vm[0].length); }
+        cur = { type: 'phrase', cols: parseNotes(t), lyrics: [], annos: [], volta: volta };
         items.push(cur);
         continue;
       }
@@ -159,6 +184,11 @@
 
   function buildCol(col, lyricRows, rowCount) {
     var node = el('div', 'col ' + col.kind);
+
+    // 和弦：用 absolute 擺，所以唔會撐闊欄位 —— 排版仍然跟歌詞
+    var chord = el('div', 'chord');
+    if (col.chord) chord.appendChild(el('span', null, col.chord));
+    node.appendChild(chord);
 
     var above = el('div', 'above');
     var mid = el('div', 'mid');
@@ -227,8 +257,16 @@
     for (var r = 0; r < rowCount; r++) cursors.push(0);
 
     var line = el('div', 'line');
+    if (ph.volta) {
+      var v = el('div', 'volta');
+      v.appendChild(el('span', null, ph.volta));
+      line.appendChild(v);
+    }
     var wrap = el('div', 'wrap');
     var staff = el('div', 'staff');
+    for (var h = 0; h < ph.cols.length; h++) {
+      if (ph.cols[h].chord) { staff.classList.add('chords'); break; }
+    }
 
     for (var i = 0; i < ph.cols.length; i++) {
       var col = ph.cols[i];
@@ -320,6 +358,12 @@
   function widthOf(staff) { return staff.getBoundingClientRect().width; }
 
   function fitLine(line, justify) {
+    var staff = line.querySelector('.staff');
+    fitStaff(line, justify);
+    if (staff) sizeVolta(line, staff);   // 所有收場路線都要重新度括號闊度
+  }
+
+  function fitStaff(line, justify) {
     var wrap = line.querySelector('.wrap');
     var staff = line.querySelector('.staff');
     if (!wrap || !staff) return;
@@ -367,6 +411,12 @@
       s = Math.min(1, avail / widthOf(staff));
     }
     staff.style.transform = 'scaleX(' + s.toFixed(4) + ')';
+  }
+
+  // 反覆括號只罩住嗰句嘅實際長度，唔好拉到成行
+  function sizeVolta(line, staff) {
+    var v = line.querySelector('.volta');
+    if (v) v.style.width = Math.ceil(staff.getBoundingClientRect().width) + 'px';
   }
 
   function fitAll(root) {

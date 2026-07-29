@@ -196,6 +196,34 @@ button.primary:hover { filter: brightness(1.08); color: #fff; }
   padding-inline: calc(var(--gap) * var(--gap-k, 1) / 2);
 }
 
+/* 和弦記號：span 用 absolute，唔會撐闊欄位，所以排版照樣跟歌詞 */
+.chord { position: relative; width: 100%; height: 0; }
+.staff.chords .chord { height: 1.25em; }
+.chord span {
+  position: absolute;
+  left: 0;
+  bottom: .12em;
+  white-space: nowrap;
+  font-family: "Times New Roman", Times, serif;
+  font-size: .62em;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+/* 反覆括號 1. 2. */
+.volta {
+  box-sizing: border-box;
+  max-width: 100%;
+  border-top: 1.2px solid currentColor;
+  border-left: 1.2px solid currentColor;
+  height: 1.15em;
+  margin-bottom: -.35em;
+  padding: .1em 0 0 .35em;
+  font-family: "Times New Roman", Times, serif;
+  font-size: .72em;
+  font-weight: 700;
+}
+
 /* 高／低八度點 */
 .above, .below {
   display: flex;
