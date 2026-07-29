@@ -1,0 +1,314 @@
+/* ===================================================================
+   簡譜 lead sheet — 一句一行 / 跟歌詞闊度 / 每行留白
+   =================================================================== */
+
+:root {
+  --ui-bg: #f3f2ef;
+  --ui-fg: #1d1c1a;
+  --ui-line: #d9d6d0;
+  --ui-panel: #fbfaf8;
+  --ui-accent: #8a5a2b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ui-bg: #171614;
+    --ui-fg: #eceae5;
+    --ui-line: #38352f;
+    --ui-panel: #201e1b;
+    --ui-accent: #d0a06a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ui-bg);
+  color: var(--ui-fg);
+  font: 14px/1.5 system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+}
+
+/* ----------------------------------------------------------- 版面外框 */
+
+.app {
+  display: grid;
+  grid-template-columns: minmax(300px, 30%) 1fr;
+  height: 100vh;
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--ui-line);
+  background: var(--ui-panel);
+}
+
+.editor h2 {
+  margin: 0;
+  padding: 14px 16px 10px;
+  font-size: 14px;
+  letter-spacing: .04em;
+}
+
+.editor h2 small { font-weight: 400; opacity: .6; margin-left: .5em; }
+
+.editor textarea {
+  flex: 1;
+  min-height: 160px;
+  margin: 0 12px;
+  padding: 12px;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-bg);
+  color: inherit;
+  font: 13px/1.75 ui-monospace, SFMono-Regular, Menlo, Consolas, "PingFang TC", monospace;
+  resize: none;
+  tab-size: 2;
+}
+
+.controls {
+  padding: 12px 16px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.ctl { display: grid; grid-template-columns: 6.5em 1fr 3.2em; align-items: center; gap: 8px; }
+.ctl label { font-size: 12px; opacity: .8; }
+.ctl output { font-size: 12px; opacity: .6; text-align: right; font-variant-numeric: tabular-nums; }
+.ctl input[type=range] { width: 100%; accent-color: var(--ui-accent); }
+.ctl select { width: 100%; padding: 3px 6px; border: 1px solid var(--ui-line); border-radius: 4px;
+              background: var(--ui-bg); color: inherit; font: inherit; font-size: 12px; }
+
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+button, .btn {
+  padding: 7px 12px;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+button:hover, .btn:hover { border-color: var(--ui-accent); color: var(--ui-accent); }
+button.primary { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+button.primary:hover { filter: brightness(1.08); color: #fff; }
+
+.preview {
+  overflow: auto;
+  padding: 28px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* --------------------------------------------------------------- 紙面 */
+
+.sheet {
+  /* 可調參數 */
+  --page-w: 210mm;
+  --page-pad: 15mm;      /* 同 @page margin 一樣，所以預覽同印出嚟一模一樣 */
+  --note-size: 21px;      /* 簡譜數字大細 */
+  --lyric-size: .78em;    /* 歌詞相對數字嘅大細 */
+  --gap: .62em;           /* 音符之間嘅基本間距（塞唔落時會自動縮） */
+  --space-h: 13mm;        /* 每句下面嘅留白高度 */
+  --line-gap: 3mm;        /* 句與句之間 */
+  --rule: transparent;    /* 留白嘅橫線顏色 */
+  --ink: #14120f;
+
+  width: var(--page-w);
+  min-height: 297mm;
+  padding: var(--page-pad);
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 2px 18px rgba(0, 0, 0, .18);
+  font-family: "Songti TC", "PingFang TC", "Microsoft JhengHei", "Noto Serif TC", "Noto Sans TC", serif;
+}
+
+/* -------------------------------------------------------------- 標題區 */
+
+.sheet-head { text-align: center; margin-bottom: 8mm; }
+
+.sheet-head h1 {
+  margin: 0 0 2mm;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.sheet-head .subtitle { font-size: 13px; opacity: .7; margin-bottom: 2mm; }
+
+.sheet-head .credits {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 12.5px;
+  margin-top: 4mm;
+  text-align: left;
+}
+.sheet-head .c-left span { margin-right: 1.2em; font-weight: 600; letter-spacing: .03em; }
+.sheet-head .c-right { text-align: right; line-height: 1.45; }
+.sheet-head .headnote { font-size: 11.5px; opacity: .65; margin-top: 2mm; text-align: left; }
+
+/* ------------------------------------------------------------ 段落標記 */
+
+.section {
+  margin: 5mm 0 2mm;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--ui-accent, #8a5a2b);
+}
+.section:first-child { margin-top: 0; }
+
+.freetext { font-size: 12.5px; opacity: .75; margin: 2mm 0; }
+
+/* ---------------------------------------------------- 一句 = 一行 */
+
+.line {
+  margin-bottom: var(--line-gap);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* 壓縮後畫出嚟一定窄過容器，overflow 只係防止 layout 撐闊 */
+.wrap { overflow: hidden; }
+
+.staff {
+  display: inline-flex;
+  align-items: flex-start;
+  white-space: nowrap;
+  font-size: var(--note-size);
+  line-height: 1;
+  transform-origin: left top;
+}
+
+/* 每粒音符一欄；闊度 = max-content = 歌詞字闊（CJK 通常闊過數字）*/
+.col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-inline: calc(var(--gap) * var(--gap-k, 1) / 2);
+}
+
+/* 高／低八度點 */
+.above, .below {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: .42em;
+  gap: .07em;
+}
+.below { justify-content: flex-start; }
+.odot { width: .13em; height: .13em; border-radius: 50%; background: currentColor; flex: none; }
+
+/* 數字本體 */
+.mid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.12em;
+  min-width: .62em;
+  font-family: "Times New Roman", Times, "Songti TC", serif;
+}
+.num { font-size: 1em; }
+.acc { font-size: .62em; align-self: flex-start; margin-top: .1em; margin-right: .04em; }
+.aug { font-size: 1em; margin-left: .12em; line-height: 0; }
+.tie { font-size: .9em; letter-spacing: 0; }
+
+.barline { display: block; width: 1.4px; height: 1.02em; background: currentColor; }
+.barline.final { box-shadow: .16em 0 0 currentColor; width: 1.4px; }
+.barline.repeat-start,
+.barline.repeat-end,
+.barline.repeat-both { box-shadow: .16em 0 0 currentColor; }
+.col.bar .mid { min-width: 0; }
+.col.bar { padding-inline: calc(var(--gap) * var(--gap-k, 1) * .55); }
+
+/* 減時線（八分／十六分）；bleed 到欄邊，所以相鄰音符會駁埋一條 */
+.beams { width: 100%; height: .24em; padding-top: .06em; }
+.beams i {
+  display: block;
+  height: .055em;
+  min-height: 1px;
+  margin-bottom: .055em;
+  background: currentColor;
+}
+.beams i.bl { margin-left: calc(var(--gap) * var(--gap-k, 1) / -2); }
+.beams i.br { margin-right: calc(var(--gap) * var(--gap-k, 1) / -2); }
+
+/* 歌詞 */
+.lyric {
+  font-size: var(--lyric-size);
+  line-height: 1.4;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  position: relative;
+}
+.lyric.mel::before {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 62%;
+  height: 1px;
+  background: currentColor;
+}
+
+/* ------------------------------------------------- 每行下面嘅留白 */
+
+.space {
+  height: var(--space-h);
+  border-bottom: 1px solid var(--rule);
+  border-bottom-style: var(--rule-style, solid);
+  padding-top: 1mm;
+}
+
+.anno {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.4;
+  opacity: .78;
+}
+
+.sheet.hide-anno .anno { display: none; }
+
+/* 打譜提示：淨係喺螢幕度出現，唔會印出嚟 */
+.warn {
+  margin-top: 1mm;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #fdf0e0;
+  color: #8a4b12;
+  font-family: system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+/* ------------------------------------------------------------- 列印 */
+
+@page { size: A4 portrait; margin: 15mm; }
+
+@media print {
+  body { background: #fff; }
+  .app { display: block; height: auto; }
+  .editor { display: none !important; }
+  .preview { display: block; padding: 0; overflow: visible; }
+  /* 邊界交返俾 @page，咁每一頁（唔止第一頁）都會有上下邊界。
+     闊度仍然寫死 = 紙闊 - 兩邊頁邊，同螢幕預覽嘅內文闊度一模一樣，
+     所以喺螢幕度計好嘅壓縮比例，印出嚟一樣啱。 */
+  .sheet {
+    box-shadow: none;
+    min-height: 0;
+    padding: 0;
+    width: calc(var(--page-w) - var(--page-pad) * 2);
+  }
+  .section { color: #000; }
+  .warn { display: none !important; }
+}

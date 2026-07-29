@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>簡譜排版器 — 一句一行</title>
+<link rel="stylesheet" href="leadsheet.css">
+<style id="pagesize">@page { size: A4 portrait; margin: 0; }</style>
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="editor">
+    <h2>簡譜原稿 <small>一行音符、下一行歌詞</small></h2>
+    <textarea id="src" spellcheck="false"></textarea>
+
+    <div class="controls">
+      <div class="ctl">
+        <label for="noteSize">譜字大細</label>
+        <input type="range" id="noteSize" min="13" max="34" step="1" value="21">
+        <output id="noteSizeV"></output>
+      </div>
+      <div class="ctl">
+        <label for="lyricSize">歌詞大細</label>
+        <input type="range" id="lyricSize" min="55" max="105" step="1" value="78">
+        <output id="lyricSizeV"></output>
+      </div>
+      <div class="ctl">
+        <label for="gap">音符間距</label>
+        <input type="range" id="gap" min="25" max="130" step="1" value="62">
+        <output id="gapV"></output>
+      </div>
+      <div class="ctl">
+        <label for="space">留白高度</label>
+        <input type="range" id="space" min="0" max="32" step="1" value="13">
+        <output id="spaceV"></output>
+      </div>
+      <div class="ctl">
+        <label for="lineGap">行距</label>
+        <input type="range" id="lineGap" min="0" max="14" step="1" value="3">
+        <output id="lineGapV"></output>
+      </div>
+      <div class="ctl">
+        <label for="margin">頁邊</label>
+        <input type="range" id="margin" min="8" max="28" step="1" value="15">
+        <output id="marginV"></output>
+      </div>
+      <div class="ctl">
+        <label for="align">行寬</label>
+        <select id="align">
+          <option value="left">跟歌詞長度（靠左）</option>
+          <option value="justify">每句撐滿一行</option>
+        </select>
+        <span></span>
+      </div>
+      <div class="ctl">
+        <label for="rule">留白橫線</label>
+        <select id="rule">
+          <option value="none">無（淨白）</option>
+          <option value="dashed">虛線</option>
+          <option value="dotted">點線</option>
+          <option value="solid">實線</option>
+        </select>
+        <span></span>
+      </div>
+      <div class="ctl">
+        <label for="paper">紙張</label>
+        <select id="paper">
+          <option value="210mm|A4 portrait">A4 直度</option>
+          <option value="297mm|A4 landscape">A4 橫度</option>
+          <option value="216mm|Letter portrait">Letter 直度</option>
+        </select>
+        <span></span>
+      </div>
+      <div class="ctl">
+        <label for="showAnno">英文／註解</label>
+        <label style="font-size:12px;opacity:.8">
+          <input type="checkbox" id="showAnno" checked> 喺留白入面印出嚟
+        </label>
+        <span></span>
+      </div>
+
+      <div class="row">
+        <button class="primary" id="print">列印 / 存 PDF</button>
+        <button id="open">開啟 .txt</button>
+        <button id="save">下載 .txt</button>
+      </div>
+      <div class="row">
+        <button data-demo="twinkle">示範：小星星</button>
+        <button data-demo="layout">示範：排版</button>
+      </div>
+    </div>
+    <input type="file" id="file" accept=".txt,text/plain" hidden>
+  </aside>
+
+  <main class="preview">
+    <div class="sheet" id="sheet"></div>
+  </main>
+
+</div>
+
+<script src="songs.js"></script>
+<script src="jianpu.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var src = $('src'), sheet = $('sheet');
+  var KEY = 'jianpu.src', KEYC = 'jianpu.controls';
+
+  /* ---------------------------------------------------------- 繪製 */
+
+  var timer = null;
+  function draw() {
+    Jianpu.render(Jianpu.parse(src.value), sheet);
+    sheet.classList.toggle('hide-anno', !$('showAnno').checked);
+    refit();
+    try { localStorage.setItem(KEY, src.value); } catch (e) {}
+  }
+  function drawSoon() { clearTimeout(timer); timer = setTimeout(draw, 120); }
+
+  function refit() {
+    // 等 layout 定咗先量度
+    requestAnimationFrame(function () { Jianpu.fitAll(sheet); });
+  }
+
+  /* -------------------------------------------------------- 控制項 */
+
+  var CONTROLS = [
+    { id: 'noteSize',  prop: '--note-size',  fmt: function (v) { return v + 'px'; },        label: function (v) { return v + 'px'; } },
+    { id: 'lyricSize', prop: '--lyric-size', fmt: function (v) { return (v / 100) + 'em'; }, label: function (v) { return v + '%'; } },
+    { id: 'gap',       prop: '--gap',        fmt: function (v) { return (v / 100) + 'em'; }, label: function (v) { return v + '%'; } },
+    { id: 'space',     prop: '--space-h',    fmt: function (v) { return v + 'mm'; },         label: function (v) { return v + 'mm'; } },
+    { id: 'lineGap',   prop: '--line-gap',   fmt: function (v) { return v + 'mm'; },         label: function (v) { return v + 'mm'; } },
+    { id: 'margin',    prop: '--page-pad',   fmt: function (v) { return v + 'mm'; },         label: function (v) { return v + 'mm'; } }
+  ];
+
+  function applyControls() {
+    CONTROLS.forEach(function (c) {
+      var v = $(c.id).value;
+      sheet.style.setProperty(c.prop, c.fmt(v));
+      var out = $(c.id + 'V');
+      if (out) out.value = c.label(v);
+    });
+
+    sheet.classList.toggle('justify', $('align').value === 'justify');
+
+    var rule = $('rule').value;
+    sheet.style.setProperty('--rule', rule === 'none' ? 'transparent' : 'rgba(0,0,0,.28)');
+    sheet.style.setProperty('--rule-style', rule === 'none' ? 'solid' : rule);
+
+    // @page 嘅 margin 同 .sheet 嘅 padding 保持一致 → 預覽 = 印出嚟嘅樣
+    var paper = $('paper').value.split('|');
+    sheet.style.setProperty('--page-w', paper[0]);
+    $('pagesize').textContent =
+      '@page { size: ' + paper[1] + '; margin: ' + $('margin').value + 'mm; }';
+
+    sheet.classList.toggle('hide-anno', !$('showAnno').checked);
+
+    try {
+      var state = {};
+      CONTROLS.forEach(function (c) { state[c.id] = $(c.id).value; });
+      state.rule = $('rule').value;
+      state.align = $('align').value;
+      state.paper = $('paper').value;
+      state.showAnno = $('showAnno').checked;
+      localStorage.setItem(KEYC, JSON.stringify(state));
+    } catch (e) {}
+
+    refit();
+  }
+
+  function restoreControls() {
+    var state;
+    try { state = JSON.parse(localStorage.getItem(KEYC) || 'null'); } catch (e) {}
+    if (!state) return;
+    CONTROLS.forEach(function (c) { if (state[c.id] != null) $(c.id).value = state[c.id]; });
+    if (state.rule) $('rule').value = state.rule;
+    if (state.align) $('align').value = state.align;
+    if (state.paper) $('paper').value = state.paper;
+    if (state.showAnno != null) $('showAnno').checked = state.showAnno;
+  }
+
+  /* ------------------------------------------------------------ 綁定 */
+
+  src.addEventListener('input', drawSoon);
+
+  ['noteSize', 'lyricSize', 'gap', 'space', 'lineGap', 'margin', 'rule', 'align', 'paper', 'showAnno']
+    .forEach(function (id) { $(id).addEventListener('input', applyControls); });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-demo]'), function (b) {
+    b.addEventListener('click', function () {
+      src.value = window.DEMO_SONGS[b.dataset.demo];
+      draw();
+    });
+  });
+
+  $('print').addEventListener('click', function () { window.print(); });
+
+  $('open').addEventListener('click', function () { $('file').click(); });
+  $('file').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function () { src.value = fr.result; draw(); };
+    fr.readAsText(f, 'utf-8');
+    e.target.value = '';
+  });
+
+  $('save').addEventListener('click', function () {
+    var meta = Jianpu.parse(src.value).meta;
+    var name = (meta.title || '簡譜').replace(/[\\/:*?"<>|]/g, '') + '.txt';
+    var url = URL.createObjectURL(new Blob([src.value], { type: 'text/plain;charset=utf-8' }));
+    var a = document.createElement('a');
+    a.href = url; a.download = name; a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  });
+
+  // 版面一變（拉窗、印刷）就重新計每句嘅壓縮比例
+  if (window.ResizeObserver) new ResizeObserver(refit).observe(sheet);
+  window.addEventListener('resize', refit);
+  window.addEventListener('beforeprint', function () { Jianpu.fitAll(sheet); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+
+  /* -------------------------------------------------------------- 啟動 */
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  src.value = saved || window.DEMO_SONGS.twinkle;
+  restoreControls();
+  applyControls();
+  draw();
+})();
+</script>
+</body>
+</html>
