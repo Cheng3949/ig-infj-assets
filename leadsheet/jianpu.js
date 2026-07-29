@@ -47,9 +47,20 @@
     return /^[0-7#b♯♭n=＝\^v_.\-|:()\s]+$/.test(s);
   }
 
+  // 群組減時線：_(3 5 5 3) ＝ 逐粒加一條減時線，__( ) ＝ 兩條。
+  // 連續八分／十六分音群唔使逐粒打 _，慳好多鍵。
+  function expandGroups(text) {
+    return text.replace(/(_+)\(([^)]*)\)/g, function (_m, marks, body) {
+      return body.trim().split(/\s+/).map(function (t) {
+        if (!t || BARS[t] || /^-+$/.test(t)) return t;   // 小節線、延音線唔加
+        return t + marks;
+      }).join(' ');
+    });
+  }
+
   function parseNotes(text) {
     var cols = [];
-    var toks = text.trim().split(/\s+/);
+    var toks = expandGroups(text).trim().split(/\s+/);
     var pendingChord = null;
 
     function push(col) {
