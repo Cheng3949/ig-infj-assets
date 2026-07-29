@@ -1,0 +1,14 @@
+# 呢個 repo 係公開嘅。
+# 填好咗音符同歌詞嘅譜唔好 commit 上嚟 —— 受版權保護嘅旋律同歌詞
+# 一 push 就等於公開發佈。譜檔留喺自己部機就得
+#（工具本身有「開啟 .txt / 下載 .txt」，成個流程唔使經 git）。
+#
+# songs/ 入面只保留冇內容嘅骨架檔（標題／詞曲 credit／段落）。
+
+songs/*.txt
+!songs/vincent.txt
+!songs/yesterday-once-more.txt
+!songs/tonight-i-celebrate-my-love.txt
+!songs/take-me-to-your-heart.txt
+!songs/my-heart-will-go-on.txt
+!songs/oh-carol.txt
