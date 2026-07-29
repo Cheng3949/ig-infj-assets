@@ -316,6 +316,11 @@ button.primary:hover { filter: brightness(1.08); color: #fff; }
 .sheet.hide-anno .anno { display: none; }
 
 /* 打譜提示：淨係喺螢幕度出現，唔會印出嚟 */
+.warn.beat {
+  background: #e8f0fb;
+  color: #1c4a86;
+}
+
 .warn {
   margin-top: 1mm;
   padding: 2px 7px;

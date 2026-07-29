@@ -353,19 +353,81 @@
     return head;
   }
 
+  /* ------------------------------------------------------------ 拍數檢查 */
+
+  // 一粒音幾多拍（以四分音符 = 1 拍計）
+  function dur(col) {
+    if (col.kind === 'dash') return 1;
+    if (col.kind !== 'note') return 0;
+    var d = 1;
+    for (var i = 0; i < col.beams; i++) d /= 2;
+    var add = d;
+    for (var j = 0; j < col.dots; j++) { add /= 2; d += add; }
+    return d;
+  }
+
+  // 4/4→4、3/4→3、6/8→3（都係換算做四分音符拍數）
+  function beatsPerMeasure(time) {
+    var m = /(\d+)\s*\/\s*(\d+)/.exec(time || '');
+    if (!m) return 0;
+    var n = +m[1], d = +m[2];
+    return (n && d) ? n * 4 / d : 0;
+  }
+
+  function tidy(n) { return String(Math.round(n * 1000) / 1000); }
+
+  // 逐個小節夾拍數。小節會跨句，所以要一路累加落去。
+  function checkBeats(song, phrases) {
+    var exp = beatsPerMeasure(song.meta && song.meta.time);
+    if (!exp) return;                       // 冇寫拍號就唔查（散板／自由拍啱用）
+
+    var acc = 0, measure = 0, first = true;
+
+    function close(line) {
+      measure++;
+      var short0 = acc < exp - 1e-6, long0 = acc > exp + 1e-6;
+      // 第一個小節短拍＝弱起，正常，唔報
+      if ((short0 || long0) && !(first && short0)) {
+        line.appendChild(el('div', 'warn beat',
+          '♩ 第 ' + measure + ' 小節係 ' + tidy(acc) + ' 拍，' +
+          (long0 ? '多咗 ' + tidy(acc - exp) : '爭 ' + tidy(exp - acc)) +
+          ' 拍（' + song.meta.time + ' 應該 ' + tidy(exp) + ' 拍）'));
+      }
+      first = false;
+      acc = 0;
+    }
+
+    for (var i = 0; i < phrases.length; i++) {
+      var cols = phrases[i].item.cols, line = phrases[i].line;
+      for (var c = 0; c < cols.length; c++) {
+        if (cols[c].kind !== 'bar') { acc += dur(cols[c]); continue; }
+        if (acc > 0) close(line);
+      }
+      // 句尾啱啱夠拍就當收咗小節 —— 好多譜靠斷行代替最後嗰條小節線。
+      // 唔夠拍就留返落下一句（跨句嘅小節、弱起都係咁）。
+      while (acc >= exp - 1e-6) { var over = acc - exp; acc = exp; close(line); acc = over; }
+    }
+  }
+
   function render(song, root) {
     root.innerHTML = '';
     if (song.meta && Object.keys(song.meta).length) root.appendChild(buildHeader(song.meta));
 
     var body = el('div', 'sheet-body');
+    var phrases = [];
     for (var i = 0; i < song.items.length; i++) {
       var it = song.items[i];
       if (it.type === 'section') body.appendChild(el('div', 'section', it.text));
       else if (it.type === 'text') body.appendChild(el('div', 'freetext', it.text));
       else if (it.type === 'blank') body.appendChild(buildBlank());
-      else body.appendChild(buildPhrase(it));
+      else {
+        var ln = buildPhrase(it);
+        phrases.push({ item: it, line: ln });
+        body.appendChild(ln);
+      }
     }
     root.appendChild(body);
+    checkBeats(song, phrases);
     return root;
   }
 
